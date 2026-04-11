@@ -356,6 +356,7 @@ def load_data(args: argparse.Namespace) -> tuple[dgl.DGLGraph, dict[str, torch.T
             return adj, feature, labels, sens, idx_train, idx_val, idx_test
            
     adj, feature, labels, sens, idx_train, idx_val, idx_test = load_dataset(args)
+    print(f"num edges: {adj.size}")
     g = dgl.graph(adj.nonzero())
     g.ndata.update({
         "feature": feature,
