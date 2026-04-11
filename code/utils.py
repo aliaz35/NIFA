@@ -355,6 +355,8 @@ def load_data(args: argparse.Namespace) -> tuple[dgl.DGLGraph, dict[str, torch.T
             
             return adj, feature, labels, sens, idx_train, idx_val, idx_test
            
+    if args.dataset in ['pokec_z', 'pokec_n']:
+        return load_pokec(args.dataset)
     adj, feature, labels, sens, idx_train, idx_val, idx_test = load_dataset(args)
     print(f"num edges: {adj.size}")
     g = dgl.graph(adj.nonzero())
@@ -370,23 +372,23 @@ def load_data(args: argparse.Namespace) -> tuple[dgl.DGLGraph, dict[str, torch.T
     }
     return g, index_split
 
-# def load_data(dataset):
-#     dataset = dataset.lower()
-#     assert dataset in ['pokec_z','pokec_n', 'dblp']
+def load_pokec(dataset):
+    dataset = dataset.lower()
+    assert dataset in ['pokec_z','pokec_n', 'dblp']
     
-#     glist, _ = dgl.load_graphs(f'../data/{dataset}.bin')
-#     g = glist[0]
+    glist, _ = dgl.load_graphs(f'../data/{dataset}.bin')
+    g = glist[0]
 
-#     idx_train = torch.where(g.ndata['train_index'])[0]
-#     idx_val = torch.where(g.ndata['val_index'])[0]
-#     idx_test = torch.where(g.ndata['test_index'])[0]
-#     # g.ndata.pop('train_index')
-#     # g.ndata.pop('val_index')
-#     # g.ndata.pop('test_index')
-#     index_split = {'train_index': idx_train,
-#                     'val_index': idx_val,
-#                     'test_index': idx_test}
-#     return g, index_split
+    idx_train = torch.where(g.ndata['train_index'])[0]
+    idx_val = torch.where(g.ndata['val_index'])[0]
+    idx_test = torch.where(g.ndata['test_index'])[0]
+    # g.ndata.pop('train_index')
+    # g.ndata.pop('val_index')
+    # g.ndata.pop('test_index')
+    index_split = {'train_index': idx_train,
+                    'val_index': idx_val,
+                    'test_index': idx_test}
+    return g, index_split
 
 
 def fair_matrix(pred, label, sens, index):
