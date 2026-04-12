@@ -3,15 +3,16 @@ import torch.nn as nn
 import torch.nn.functional as F
 import dgl
 import copy
+import downstream
 
 from utils import fair_matrix
 
 class VictimModel():
-    def __init__(self, in_feats, h_feats, num_classes, device, name='GCN'):
+    def __init__(self, in_feats, h_feats, num_classes, device, name='GCN', task_type='NC'):
         
         assert name in ['GCN', 'SGC', 'APPNP', 'GraphSAGE'], "GNN model not implement"
         if name == 'GCN':
-            self.model = GCN(in_feats, h_feats, num_classes)
+            self.model = GCN(in_feats, h_feats, h_feats)
         elif name == 'SGC':
             self.model = SGC(in_feats, h_feats, num_classes)
         elif name == 'APPNP':
@@ -20,6 +21,8 @@ class VictimModel():
             self.model = GraphSAGE(in_feats, h_feats, num_classes)
 
         self.model.to(device)
+
+        self.task = downstream.Classifier(h_feats, num_classes, device)
 
     def optimize(self, g, index_split, epochs, lr, patience):
         optimizer = torch.optim.Adam(self.model.parameters(), lr=lr, weight_decay=0)
@@ -34,7 +37,7 @@ class VictimModel():
         best_val_acc = 0
         cnt = 0
         for epoch in range(epochs):
-            output = self.model(g, feature)
+            output = self.task(self.model(g, feature))
             pred = output.argmax(1)
             val_acc = torch.eq(pred, label)[val_index].sum() / len(val_index)
             test_acc = torch.eq(pred, label)[test_index].sum() / len(test_index)
@@ -76,7 +79,7 @@ class VictimModel():
         best_val_acc = 0
         cnt = 0
         for epoch in range(epochs):
-            output = self.model(g, feature)
+            output = self.task(self.model(g, feature))
             pred = output.argmax(1)
             val_acc = torch.eq(pred, label)[val_index].sum() / len(val_index)
             test_acc = torch.eq(pred, label)[test_index].sum() / len(test_index)
@@ -100,7 +103,8 @@ class VictimModel():
     def eval(self, g, index_split):
         with torch.no_grad():
             self.model.eval()
-            output = self.model(g, g.ndata['feature'])
+            self.task.eval()
+            output = self.task(self.model(g, g.ndata['feature']))
             label = g.ndata['label']
             sensitive = g.ndata['sensitive']
             pred = output.argmax(1)
@@ -118,12 +122,12 @@ class VictimModel():
 class GCN(nn.Module):
     def __init__(self, in_feats, h_feats, num_classes):
         super(GCN, self).__init__()
-        self.conv1 = dgl.nn.GraphConv(in_feats, h_feats, norm='both')
-        self.conv2 = dgl.nn.GraphConv(h_feats, num_classes, norm='both')
+        self.conv1 = dgl.nn.GraphConv(in_feats, h_feats, norm='both', activation=F.relu)
+        self.conv2 = dgl.nn.GraphConv(h_feats, h_feats, norm='both', activation=F.relu)
 
     def forward(self, g, in_feat):
         h = self.conv1(g, in_feat)
-        h = F.relu(h)
+        # h = F.relu(h)
         h = self.conv2(g, h)
         return h
 

@@ -37,23 +37,74 @@ def feature_normalize(feature):
     rowsum = np.clip(rowsum, 1, 1e10)
     return feature / rowsum
 
-def train_val_test_split(labels,train_ratio=0.5,val_ratio=0.25,seed=20,label_number=1000):
+# def train_val_test_split(labels,train_ratio=0.5,val_ratio=0.25,seed=20,label_number=1000):
+#     import random
+#     random.seed(seed)
+#     label_idx_0 = np.where(labels==0)[0]  # 只要label为0和1的
+#     label_idx_1 = np.where(labels==1)[0]  # 
+#     random.shuffle(label_idx_0) 
+#     random.shuffle(label_idx_1)
+#     position1 = train_ratio
+#     position2 = train_ratio + val_ratio
+#     idx_train = np.append(label_idx_0[:min(int(position1 * len(label_idx_0)), label_number//2)], 
+#                           label_idx_1[:min(int(position1 * len(label_idx_1)), label_number//2)])
+#     idx_val = np.append(label_idx_0[int(position1 * len(label_idx_0)):int(position2 * len(label_idx_0))], 
+#                         label_idx_1[int(position1 * len(label_idx_1)):int(position2 * len(label_idx_1))])
+#     idx_test = np.append(label_idx_0[int(position2 * len(label_idx_0)):],
+#                          label_idx_1[int(position2 * len(label_idx_1)):])
+#     print('train,val,test:',len(idx_train),len(idx_val),len(idx_test))
+#     return idx_train, idx_val, idx_test
+
+import numpy as np
+
+def train_val_test_split(labels, train_ratio=0.5, val_ratio=0.25, seed=20):
+    """
+    严格按照比例划分数据集，并保持正负样本的比例分布 (Stratified split)。
+    """
     import random
+    
+    # 确保随机种子固定，保证每次实验结果可复现
     random.seed(seed)
-    label_idx_0 = np.where(labels==0)[0]  # 只要label为0和1的
-    label_idx_1 = np.where(labels==1)[0]  # 
-    random.shuffle(label_idx_0) 
-    random.shuffle(label_idx_1)
-    position1 = train_ratio
-    position2 = train_ratio + val_ratio
-    idx_train = np.append(label_idx_0[:min(int(position1 * len(label_idx_0)), label_number//2)], 
-                          label_idx_1[:min(int(position1 * len(label_idx_1)), label_number//2)])
-    idx_val = np.append(label_idx_0[int(position1 * len(label_idx_0)):int(position2 * len(label_idx_0))], 
-                        label_idx_1[int(position1 * len(label_idx_1)):int(position2 * len(label_idx_1))])
-    idx_test = np.append(label_idx_0[int(position2 * len(label_idx_0)):],
-                         label_idx_1[int(position2 * len(label_idx_1)):])
-    print('train,val,test:',len(idx_train),len(idx_val),len(idx_test))
+    np.random.seed(seed)
+    
+    # 获取类别0和类别1的索引
+    label_idx_0 = np.where(labels == 0)[0]
+    label_idx_1 = np.where(labels == 1)[0]
+    
+    # 打乱索引
+    np.random.shuffle(label_idx_0)
+    np.random.shuffle(label_idx_1)
+    
+    # 计算每个类别在 train 和 val 里的具体数量
+    train_len_0 = int(train_ratio * len(label_idx_0))
+    val_len_0 = int(val_ratio * len(label_idx_0))
+    
+    train_len_1 = int(train_ratio * len(label_idx_1))
+    val_len_1 = int(val_ratio * len(label_idx_1))
+    
+    # 切分 类别 0
+    train_0 = label_idx_0[:train_len_0]
+    val_0 = label_idx_0[train_len_0 : train_len_0 + val_len_0]
+    test_0 = label_idx_0[train_len_0 + val_len_0:]
+    
+    # 切分 类别 1
+    train_1 = label_idx_1[:train_len_1]
+    val_1 = label_idx_1[train_len_1 : train_len_1 + val_len_1]
+    test_1 = label_idx_1[train_len_1 + val_len_1:]
+    
+    # 合并
+    idx_train = np.append(train_0, train_1)
+    idx_val = np.append(val_0, val_1)
+    idx_test = np.append(test_0, test_1)
+    
+    # 可选但推荐：最后再打乱一下整体索引，防止模型训练时先学全是0的样本再学全是1的样本
+    np.random.shuffle(idx_train)
+    np.random.shuffle(idx_val)
+    np.random.shuffle(idx_test)
+    
+    print(f'Train, Val, Test nodes: {len(idx_train)}, {len(idx_val)}, {len(idx_test)}')
     return idx_train, idx_val, idx_test
+
 
 
 def load_data(args: argparse.Namespace) -> tuple[dgl.DGLGraph, dict[str, torch.Tensor]]:

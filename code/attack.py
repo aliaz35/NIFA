@@ -123,9 +123,10 @@ class Edge_Attack():
 
 
 class Feature_Attack(nn.Module):    
-    def __init__(self, g, in_dim, hid_dim, out_dim, node):
+    def __init__(self, g, in_dim, hid_dim, out_dim, node, task_type="NC"):
         super(Feature_Attack, self).__init__()
-        self.model = GCN(in_dim, hid_dim, out_dim)
+        self.model = GCN(in_dim, hid_dim, hid_dim)
+        self.task = downstream.Classifier(hid_dim, out_dim, torch.device("cpu"))
 
         feature = g.ndata['feature']
         self.lower_bound = torch.min(feature, dim=0)[0].repeat(node, 1)
@@ -135,7 +136,7 @@ class Feature_Attack(nn.Module):
         self.node = node
 
     def forward(self, g):
-        return self.model(g, torch.cat((g.ndata["feature"][:-self.node], self.feature), dim=0))
+        return self.task(self.model(g, torch.cat((g.ndata["feature"][:-self.node], self.feature), dim=0)))
 
     def optimize(self, g, index_split, epochs, lr, alpha, beta, loops=50):
         train_index = index_split['train_index']
