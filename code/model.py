@@ -10,7 +10,7 @@ from utils import fair_matrix
 class VictimModel():
     def __init__(self, in_feats, h_feats, num_classes, device, name='GCN', task_type='NC'):
         
-        assert name in ['GCN', 'SGC', 'APPNP', 'GraphSAGE'], "GNN model not implement"
+        assert name in ['GCN', 'SGC', 'APPNP', 'GraphSAGE', 'GAT'], "GNN model not implement"
         if name == 'GCN':
             self.model = GCN(in_feats, h_feats, h_feats)
         elif name == 'SGC':
@@ -19,6 +19,8 @@ class VictimModel():
             self.model = APPNP(in_feats, h_feats, num_classes)
         elif name == 'GraphSAGE':
             self.model = GraphSAGE(in_feats, h_feats, num_classes)
+        elif name == "GAT":
+            self.model = GAT(in_feats, h_feats)
 
         self.model.to(device)
 
@@ -131,6 +133,17 @@ class GCN(nn.Module):
         h = self.conv2(g, h)
         return h
 
+class GAT(nn.Module):
+    def __init__(self, in_dim: int, hidden_dim: int, num_heads: int=2):
+        super().__init__()
+        self.gat1 = dgl.nn.GATConv(in_dim,                 hidden_dim, num_heads=num_heads, activation=F.relu)
+        self.gat2 = dgl.nn.GATConv(hidden_dim * num_heads, hidden_dim, num_heads=1, activation=F.relu)
+
+    def forward(self, g: dgl.DGLGraph, feat: torch.Tensor) -> torch.Tensor:
+        h = self.gat1(g, feat)
+        h = h.view(h.shape[0], -1)
+        h = self.gat2(g, h)
+        return h.squeeze(1)
 
 class SGC(nn.Module):
     def __init__(self, in_feats, h_feats, num_classes):
