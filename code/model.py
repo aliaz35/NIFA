@@ -10,7 +10,7 @@ from utils import fair_matrix
 class VictimModel():
     def __init__(self, in_feats, h_feats, num_classes, device, name='GCN', task_type='NC'):
         
-        assert name in ['GCN', 'SGC', 'APPNP', 'GraphSAGE', 'GAT'], "GNN model not implement"
+        assert name in ['GCN', 'SGC', 'APPNP', 'GraphSAGE', 'GAT', 'GCNII', 'GIN'], "GNN model not implement"
         if name == 'GCN':
             self.model = GCN(in_feats, h_feats, h_feats)
         elif name == 'SGC':
@@ -21,6 +21,10 @@ class VictimModel():
             self.model = GraphSAGE(in_feats, h_feats, num_classes)
         elif name == "GAT":
             self.model = GAT(in_feats, h_feats)
+        elif name == "GCNII":
+            self.model = GCNII(in_feats, h_feats)
+        elif name == "GIN":
+            self.model = GIN(in_feats, h_feats)
 
         self.model.to(device)
 
@@ -144,6 +148,36 @@ class GAT(nn.Module):
         h = h.view(h.shape[0], -1)
         h = self.gat2(g, h)
         return h.squeeze(1)
+
+class GCNII(nn.Module):
+    def __init__(self, in_dim: int, hidden_dim: int):
+        super().__init__()
+        self.fc = nn.Linear(in_dim, hidden_dim)
+        self.gcnii1 = dgl.nn.GCN2Conv(hidden_dim, layer=1, activation=F.relu)
+        self.gcnii2 = dgl.nn.GCN2Conv(hidden_dim, layer=2, activation=F.relu)
+
+    def forward(self, g: dgl.DGLGraph, feat: torch.Tensor) -> torch.Tensor:
+        h = self.fc(feat)
+        res = h
+        res = self.gcnii1(g, res, h)
+        return self.gcnii2(g, res, h)
+
+class GIN(nn.Module):
+    def __init__(self, in_dim: int, hidden_dim: int):
+        super().__init__()
+        def mlp(in_dim: int, hidden_dim: int, out_dim: int) -> nn.Module:
+            return nn.Sequential(
+                nn.Linear(in_dim, hidden_dim),
+                nn.ReLU(),
+                nn.Linear(hidden_dim, out_dim),
+                nn.ReLU()
+            )
+        self.gin1 = dgl.nn.GINConv(mlp(in_dim, hidden_dim, hidden_dim), learn_eps=True, activation=F.relu)
+        self.gin2 = dgl.nn.GINConv(mlp(hidden_dim, hidden_dim, hidden_dim), learn_eps=True, activation=F.relu)
+
+    def forward(self, g: dgl.DGLGraph, feat: torch.Tensor) -> torch.Tensor:
+        h = self.gin1(g, feat)
+        return self.gin2(g, h)
 
 class SGC(nn.Module):
     def __init__(self, in_feats, h_feats, num_classes):
