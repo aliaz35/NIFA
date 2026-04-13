@@ -204,11 +204,10 @@ class APPNP(nn.Module):
 class GraphSAGE(nn.Module):
     def __init__(self, in_feats, hid_feats, out_feats):
         super().__init__()
-        self.conv1 = dgl.nn.SAGEConv(in_feats, hid_feats, aggregator_type='mean')
-        self.conv2 = dgl.nn.SAGEConv(hid_feats, out_feats, aggregator_type='mean')
+        self.conv1 = dgl.nn.SAGEConv(in_feats, hid_feats, aggregator_type='mean', activation=F.relu)
+        self.conv2 = dgl.nn.SAGEConv(hid_feats, hid_feats, aggregator_type='mean', activation=F.relu)
 
     def forward(self, graph, inputs):
         h = self.conv1(graph, inputs)
-        h = F.relu(h)
         h = self.conv2(graph, h)
         return h
