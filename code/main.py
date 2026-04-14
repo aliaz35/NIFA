@@ -40,7 +40,7 @@ print(args)
 
 # -----------------------------------main------------------------------------------ 
 
-device = torch.device("cuda", args.device)
+device = torch.device("cuda", args.device) if torch.cuda.is_available() else torch.device("cpu")
 
 if args.before:
     B_ACC = {model:[] for model in args.models}
