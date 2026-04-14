@@ -154,6 +154,16 @@ def load_data(args: argparse.Namespace) -> tuple[dgl.DGLGraph, dict[str, torch.T
             print('sens:',sens_attr)
             print('feature:',feature.shape)
             print('labels:',torch.unique(labels))
+            ###
+            # 在返回前建议加入以下保护和检查逻辑
+            print(f'NBA Dataset - Total samples: {len(labels)}')
+            print(f'Sensitive distribution: {torch.unique(sens, return_counts=True)}')
+
+            # 检查特征是否存在全零列（小数据集常见，会导致归一化崩溃）
+            if (feature.std(axis=0) == 0).any():
+                print("Warning: Constant features detected, removing them...")
+                feature = feature[:, feature.std(axis=0) != 0]
+            ###
             return adj, feature, labels, sens, idx_train, idx_val, idx_test # 不包含label [0,1(大于1的转成1)]以外的值的id
 
         elif args.dataset=='pokec_z':
@@ -406,7 +416,7 @@ def load_data(args: argparse.Namespace) -> tuple[dgl.DGLGraph, dict[str, torch.T
             
             return adj, feature, labels, sens, idx_train, idx_val, idx_test
            
-    if args.dataset in ['pokec_z', 'pokec_n']:
+    if args.dataset in ['pokec_z', 'pokec_n', 'dblp']:
         return load_pokec(args.dataset)
     adj, feature, labels, sens, idx_train, idx_val, idx_test = load_dataset(args)
     print(f"num edges: {adj.size}")
